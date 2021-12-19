@@ -1,1 +1,1 @@
-Latest code can be tested here: https://unradelic.com/chess
+Live code preview here: https://unradelic.github.io/chess/
