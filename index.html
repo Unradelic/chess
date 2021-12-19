@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Rocket Chess</title>
+        <link rel="stylesheet" href="style.css">
+        <script src="chess.js"></script>
+        <script src="warpspeed.min.js"></script>
+    </head>
+    <body>
+        <div id="spaceground">
+            <canvas id="wrpcanvas"></canvas>
+            <script type="text/javascript">
+                var wrpsp = new WarpSpeed("wrpcanvas",{initialSpeed:5, targetSpeed:0.4, speedAdjFactor:0.005, density:3.5, shape:"square", backgroundColor:"#1b1e25", starColor:"#ebf1ff", speedWhileLoading:14});
+            </script>
+            <script>
+            window.onload = function() {
+                wrpsp.ready();
+            };
+            </script>
+        </div>
+        <div id="game-turn-banner" style="display: none;">
+            <p class="game-turn-banner-text">Whites Turn!</p>
+        </div>
+        <div class="board-container">
+            <div id="board" class="board"></div>
+        </div>
+    </body>
+</html>
