@@ -182,6 +182,14 @@ function drawBoxHint(origin, coordMap, pawnMode=false) {
                     box.insertAdjacentHTML("beforeend", '<div class="box-clicker" onclick="executeMove(this)"></div>');
                 }
             }
+            //if pawnmode is true, then we are checking for a pawn attack
+            else if (pawnMode) {
+                if (typeof box.getElementsByClassName("white-piece")[0] !== 'undefined'
+                    || typeof box.getElementsByClassName("black-piece")[0] !== 'undefined') {
+                    box.classList.add("piece-path-attack");
+                    box.insertAdjacentHTML("beforeend", '<div class="box-clicker" onclick="executeMove(this)"></div>');
+                }
+            }
             return false;
         }
     }
@@ -196,41 +204,13 @@ function executeMove(destination) {
     if (destinationBox.innerHTML != "") {
         // Attack piece action
         let deadPiece = destinationBox.getElementsByClassName("piece")[0];
+        let deadPieceType = deadPiece.getAttribute("ptype");
+        
         if (deadPiece.classList.contains("black-piece")) {
-            let deadPieceType = deadPiece.getAttribute("ptype");
             graveyard['blacks'].push(deadPieceType);
-            if (deadPieceType == "king") {
-                // Whites win!
-                let turnBanner = document.getElementById("game-turn-banner");
-                turnBanner.getElementsByClassName("game-turn-banner-text")[0].innerHTML = "Victory for Whites!";
-                turnBanner.classList.remove("game-turn-banner");
-                setTimeout(function () {
-                    turnBanner.classList.add("game-turn-banner");
-                }, 1);
-                setTimeout(function () {
-                    eraseGame();
-                    generateBoardPlayground();
-                }, 2000);
-                return;
-            }
         }
         else if (deadPiece.classList.contains("white-piece")) {
-            let deadPieceType = deadPiece.getAttribute("ptype");
             graveyard['whites'].push(deadPieceType);
-            if (deadPieceType == "king") {
-                // Blacks win!
-                let turnBanner = document.getElementById("game-turn-banner");
-                turnBanner.getElementsByClassName("game-turn-banner-text")[0].innerHTML = "Victory for Blacks!";
-                turnBanner.classList.remove("game-turn-banner");
-                setTimeout(function () {
-                    turnBanner.classList.add("game-turn-banner");
-                }, 1);
-                setTimeout(function () {
-                    eraseGame();
-                    generateBoardPlayground();
-                }, 2000);
-                return;
-            }
         }
         destinationBox.innerHTML = "";
     }
@@ -240,6 +220,10 @@ function executeMove(destination) {
     destinationBox.insertAdjacentHTML("afterbegin", currentSelectedPiece.outerHTML);
     currentSelectedPiece.remove();
     currentSelectedPiece = false;
+    
+    //Check if currentSelectedPiece is checking the opponent's king
+    
+    
     nextTurn();
 }
 function clearPaths() {
