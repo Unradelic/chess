@@ -200,7 +200,7 @@ body {
     transition: all 0.58s ease-out, border 0.08s ease-out;
     transform: translate3d(0px, 0px, 1px);
 }
-.whites-turn .white-piece:hover {
+.whites-turn .piece[pcolor="white"]:hover {
     border: 1px solid #19e619;
     cursor: pointer;
     transform: translate3d(0px, -4px, 4px);
@@ -209,56 +209,58 @@ body {
 .blacks-turn .box .piece {
     transform: rotate(180deg) translate3d(0px, 0px, 1px);
 }
-.blacks-turn .box .black-piece:hover {
+.blacks-turn .box .piece[pcolor="black"]:hover {
 	border: 1px solid #19e619;
 	cursor: pointer;
 	transform: rotate(180deg) translate3d(0px, -4px, 4px);
 	transition: all 0.10s ease-out;
 }
-.white-piece.selected-piece {
-    animation: whitePieceSelected 1s infinite;
-    border: 1px solid #19e619;
-}
-.black-piece.selected-piece {
+.piece[pcolor="black"].selected-piece {
     animation: blackPieceSelected 1s infinite;
     border: 1px solid #19e619;
 }
+.piece[pcolor="white"].selected-piece {
+    animation: whitePieceSelected 1s infinite;
+    border: 1px solid #19e619;
+}
 
-.rook-black {
+/* Black pieces */
+.piece[ptype="rook"][pcolor="black"] {
     background-image: url("pieces/rook-black.png");
 }
-.knight-black {
+.piece[ptype="knight"][pcolor="black"] {
     background-image: url("pieces/knight-black.png");
 }
-.queen-black {
+.piece[ptype="queen"][pcolor="black"] {
     background-image: url("pieces/queen-black.png");
 }
-.king-black {
+.piece[ptype="king"][pcolor="black"] {
     background-image: url("pieces/king-black.png");
 }
-.bishop-black {
+.piece[ptype="bishop"][pcolor="black"] {
     background-image: url("pieces/bishop-black.png");
 }
-.pawn-black {
+.piece[ptype="pawn"][pcolor="black"] {
     background-image: url("pieces/pawn-black.png");
 }
 
-.rook-white {
+/* White pieces */
+.piece[ptype="rook"][pcolor="white"] {
     background-image: url("pieces/rook-white.png");
 }
-.knight-white {
+.piece[ptype="knight"][pcolor="white"] {
     background-image: url("pieces/knight-white.png");
 }
-.queen-white {
+.piece[ptype="queen"][pcolor="white"] {
     background-image: url("pieces/queen-white.png");
 }
-.king-white {
+.piece[ptype="king"][pcolor="white"] {
     background-image: url("pieces/king-white.png");
 }
-.bishop-white {
+.piece[ptype="bishop"][pcolor="white"] {
     background-image: url("pieces/bishop-white.png");
 }
-.pawn-white {
+.piece[ptype="pawn"][pcolor="white"] {
     background-image: url("pieces/pawn-white.png");
 }
 
@@ -372,6 +374,28 @@ body {
         transform: rotateX(0deg) rotateZ(0deg) rotateY(0deg);
     }
 }
+@keyframes whitePieceSelected {
+	0% {
+		transform:
+            translate3d(0px, -4px, 4px);
+	}
+	25% {
+		transform:
+            translate3d(0px, -2px, 2px);
+	}
+	50% {
+		transform:
+            translate3d(0px, -4px, 4px);
+	}
+	75% {
+		transform:
+            translate3d(0px, -2px, 2px);
+	}
+	100% {
+		transform:
+            translate3d(0px, -4px, 4px);
+	}
+}
 @keyframes blackPieceSelected {
 	0% {
 		transform:
@@ -396,28 +420,6 @@ body {
 	100% {
 		transform:
             rotate(180deg)
-            translate3d(0px, -4px, 4px);
-	}
-}
-@keyframes whitePieceSelected {
-	0% {
-		transform:
-            translate3d(0px, -4px, 4px);
-	}
-	25% {
-		transform:
-            translate3d(0px, -2px, 2px);
-	}
-	50% {
-		transform:
-            translate3d(0px, -4px, 4px);
-	}
-	75% {
-		transform:
-            translate3d(0px, -2px, 2px);
-	}
-	100% {
-		transform:
             translate3d(0px, -4px, 4px);
 	}
 }
