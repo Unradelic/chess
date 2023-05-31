@@ -2,7 +2,6 @@ var currentTurn = "white";
 var currentSelectedPiece = false;
 var graveyard = { "white": [], "black": [] };
 
-// 
 const initialPieceCoordinateMappings = {
     pawn: {
         white: [[1, 2], [2, 2], [3, 2], [4, 2], [5, 2], [6, 2], [7, 2], [8, 2]],
@@ -30,8 +29,50 @@ const initialPieceCoordinateMappings = {
     }
 };
 
+const pieceMoveOptions = {
+    'rook': {
+        repeat: true,
+        moveset: [[0, 1], [-1, 0], [0, -1], [1, 0]]
+    },
+    'knight': {
+        repeat: false,
+        moveset: [[-1, 2], [1, 2], [2, 1], [-2, -1], [-1, -2], [1, -2], [-2, 1], [2, -1]]
+    },
+    'bishop': {
+        repeat: true,
+        moveset: [[-1, 1], [1, 1], [-1, -1], [1, -1]]
+    },
+    'queen': {
+        repeat: true,
+        moveset: [[-1, 1], [0, 1], [1, 1], [-1, 0], [1, 0], [-1, -1], [0, -1], [1, -1]]
+    },
+    'king': { // treated exceptionally.
+        repeat: false,
+        moveset: {
+            beforeMove: [[-1, 1], [0, 1], [1, 1], [-1, 0], [1, 0], [-1, -1], [0, -1], [1, -1], [2, 0], [-3, 0]],
+            afterMove: [[-1, 1], [0, 1], [1, 1], [-1, 0], [1, 0], [-1, -1], [0, -1], [1, -1]]
+        }
+    },
+    'pawn-white': { // treated exceptionally.
+        repeat: false,
+        moveset: {
+            beforeMove: [[0, 1], [0, 2]],
+            afterMove: [[0, 1]],
+            attackVector: [[-1, 1], [1, 1]]
+        }
+    },
+    'pawn-black': { // treated exceptionally.
+        repeat: false,
+        moveset: {
+            beforeMove: [[0, -1], [0, -2]],
+            afterMove: [[0, -1]],
+            attackVector: [[-1, -1], [1, -1]]
+        }
+    }
+}
 
 function generateBoardPlayground() {
+    // This function adds a 8x8 chess board consisting of 8 rows each containing 8 boxes.
     let board = document.getElementById("board");
     board.classList.add("whites-turn");
     currentTurn = "white";
@@ -70,6 +111,7 @@ function generateBoardPlayground() {
     }
     board.appendChild(playground);
 }
+
 function pieceClicked(event) {
     let pieceColor = event.currentTarget.getAttribute("pcolor");
     if (currentTurn == pieceColor) {
@@ -93,49 +135,6 @@ function pieceClicked(event) {
     }
 }
 
-
-const pieceMoveOptions = {
-    'rook': {
-        repeat: true,
-        moveset: [[0, 1], [-1, 0], [0, -1], [1, 0]]
-    },
-    'knight': {
-        repeat: false,
-        moveset: [[-1, 2], [1, 2], [2, 1], [-2, -1], [-1, -2], [1, -2], [-2, 1], [2, -1]]
-    },
-    'bishop': {
-        repeat: true,
-        moveset: [[-1, 1], [1, 1], [-1, -1], [1, -1]]
-    },
-    'queen': {
-        repeat: true,
-        moveset: [[-1, 1], [0, 1], [1, 1], [-1, 0], [1, 0], [-1, -1], [0, -1], [1, -1]]
-    },
-    'king': {
-        repeat: false,
-        moveset: {
-            beforeMove: [[-1, 1], [0, 1], [1, 1], [-1, 0], [1, 0], [-1, -1], [0, -1], [1, -1], [-2, 0], [3, 0]],
-            afterMove: [[-1, 1], [0, 1], [1, 1], [-1, 0], [1, 0], [-1, -1], [0, -1], [1, -1]]
-        }
-    },
-    'pawn-white': { // treated exceptionally.
-        repeat: false,
-        moveset: {
-            beforeMove: [[0, 1], [0, 2]],
-            afterMove: [[0, 1]],
-            attackVector: [[-1, 1], [1, 1]]
-        }
-    },
-    'pawn-black': {
-        repeat: false,
-        moveset: {
-            beforeMove: [[0, -1], [0, -2]],
-            afterMove: [[0, -1]],
-            attackVector: [[-1, -1], [1, -1]]
-        }
-    }
-}
-
 function showPiecePaths(piece) {
     let piecePosNotation = piece.parentNode.getAttribute("id");
     let piecePosCoords = notationToCoord(piecePosNotation);
@@ -145,11 +144,10 @@ function showPiecePaths(piece) {
     let pieceMoveset = null;
     let pieceMovesetRepeat = false;
     
-    //Experimental
+    // To-Do: Implement a better way to handle exceptions for pawns and kings
     let pawnMode = false;
     let pawnAttackVector = false;
     
-    // To-Do: Is there a better way to handle exeptions for pawns and kings?
     if (pieceType == "pawn") {
         pawnMode = true;
         pawnAttackVector = pieceMoveOptions["pawn-" + pieceColor].moveset.attackVector;
@@ -172,10 +170,11 @@ function showPiecePaths(piece) {
         pieceMoveset = pieceMoveOptions[pieceType].moveset;
         pieceMovesetRepeat = pieceMoveOptions[pieceType].repeat;
     }
-    // Function call is passing pawnMode property. This is a workaround and a better solution must be found, as well to handle the king moveset hinting.
+    // Function call is passing pawnMode and pawnAttackVector properties.
+    // This is a workaround and a better solution must be found; this as well needs a way to handle king moveset hinting.
     hintPath(piecePosCoords, pieceMoveset, pieceMovesetRepeat, pawnMode, pawnAttackVector);
 }
-function hintPath(origin, coordMap, repeat = false, pawnMode=false) {
+function hintPath(origin, coordMap, repeat=false, pawnMode=false) {
     for (let i = 0; i < coordMap.length; i++) {
         if (!drawBoxHint(origin, coordMap[i], pawnMode))
             continue;
@@ -203,10 +202,9 @@ function drawBoxHint(origin, coordMap, pawnMode=false, pawnAttackVector=false) {
                 executeMove(boxCommand);
             };
             box.appendChild(boxCommand);
-            //box.insertAdjacentHTML("beforeend", '<div class="box-clicker" onclick="executeMove(this)"></div>');
             return true;
         }
-        else {
+        else { // To-Do: Refactor the following code once this clause runs as expected:
             let pieceInBox = box.getElementsByClassName("piece")[0];
             if (currentTurn == "white" && !pawnMode) {
                 if (typeof pieceInBox !== 'undefined') {
@@ -232,8 +230,7 @@ function drawBoxHint(origin, coordMap, pawnMode=false, pawnAttackVector=false) {
                     }
                 }
             }
-            //if pawnmode is true, then we are checking for a pawn attack
-            else if (pawnMode) {
+            else if (pawnMode) { // To-Do: If pawnmode is true, then we must additionally check pawnAttackVector
                 if (currentTurn == "black") {
                     if (typeof pieceInBox !== 'undefined') {
                         let pieceInBoxColor = pieceInBox.getAttribute("pcolor");
@@ -267,9 +264,9 @@ function executeMove(destination) {
     let destinationBox = destination.parentNode;
     clearPaths();
     currentSelectedPiece.classList.remove("selected-piece");
-    if (destinationBox.innerHTML != "") {
+    if (destinationBox.querySelector(".piece") != null) {
         // Attack piece action
-        let deadPiece = destinationBox.getElementsByClassName("piece")[0];
+        let deadPiece = destinationBox.querySelector(".piece");
         let deadPieceType = deadPiece.getAttribute("ptype");
         let deadPieceColor = deadPiece.getAttribute("pcolor");
         
