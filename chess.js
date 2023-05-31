@@ -172,11 +172,11 @@ function showPiecePaths(piece) {
     }
     // Function call is passing pawnMode and pawnAttackVector properties.
     // This is a workaround and a better solution must be found; this as well needs a way to handle king moveset hinting.
-    hintPath(piecePosCoords, pieceMoveset, pieceMovesetRepeat, pawnMode, pawnAttackVector);
+    hintPath(piecePosCoords, pieceMoveset, pieceMovesetRepeat, pawnAttackVector);
 }
-function hintPath(origin, coordMap, repeat=false, pawnMode=false) {
+function hintPath(origin, coordMap, repeat=false, pawnAttackVector=false) {
     for (let i = 0; i < coordMap.length; i++) {
-        if (!drawBoxHint(origin, coordMap[i], pawnMode))
+        if (!drawBoxHint(origin, coordMap[i]))
             continue;
         if (repeat) {
             let hinting = true;
@@ -189,72 +189,44 @@ function hintPath(origin, coordMap, repeat=false, pawnMode=false) {
             }
         }
     }
+    if (pawnAttackVector) {
+        for (let i = 0; i < pawnAttackVector.length; i++) {
+            if (!drawBoxHint(origin, pawnAttackVector[i], true))
+                continue;
+            if (repeat) {
+                let hinting = true;
+                let boardHint = origin;
+                while (hinting) {
+                    boardHint = [parseInt(boardHint[0]) + parseInt(pawnAttackVector[i][0]), parseInt(boardHint[1]) + parseInt(pawnAttackVector[i][1])];
+                    if (!drawBoxHint(boardHint, pawnAttackVector[i], true)) {
+                        hinting = false;
+                    }
+                }
+            }
+        }
+    }
 }
-function drawBoxHint(origin, coordMap, pawnMode=false, pawnAttackVector=false) {
+function drawBoxHint(origin, coordMap, pawnMode=false) {
     let boxNotationPos = coordToNotation([parseInt(origin[0]) + parseInt(coordMap[0]), parseInt(origin[1]) + parseInt(coordMap[1])]);
     let box = document.getElementById(boxNotationPos);
     if (box != null) {
-        if (box.innerHTML == "") {
+        let pieceInBox = box.querySelector(".piece");
+        if (pieceInBox == null && !pawnMode) { // If a piece is present in the box and the current hinting is not for a pawn.
             box.classList.add("piece-path");
             let boxCommand = document.createElement("div");
             boxCommand.classList.add("box-clicker");
-            boxCommand.onclick = () => {
-                executeMove(boxCommand);
-            };
+            boxCommand.onclick = () => { executeMove(boxCommand); };
             box.appendChild(boxCommand);
             return true;
         }
-        else { // To-Do: Refactor the following code once this clause runs as expected:
-            let pieceInBox = box.getElementsByClassName("piece")[0];
-            if (currentTurn == "white" && !pawnMode) {
-                if (typeof pieceInBox !== 'undefined') {
-                    let pieceInBoxColor = pieceInBox.getAttribute("pcolor");
-                    if (pieceInBoxColor == "black") {
-                        box.classList.add("piece-path-attack");
-                        let boxCommand = document.createElement("div");
-                        boxCommand.classList.add("box-clicker");
-                        boxCommand.onclick = () => { executeMove(boxCommand); };
-                        box.appendChild(boxCommand);
-                    }
-                }
-            }
-            else if (currentTurn == "black" && !pawnMode) {
-                if (typeof pieceInBox !== 'undefined') {
-                    let pieceInBoxColor = pieceInBox.getAttribute("pcolor");
-                    if (pieceInBoxColor == "white") {
-                        box.classList.add("piece-path-attack");
-                        let boxCommand = document.createElement("div");
-                        boxCommand.classList.add("box-clicker");
-                        boxCommand.onclick = () => { executeMove(boxCommand); };
-                        box.appendChild(boxCommand);
-                    }
-                }
-            }
-            else if (pawnMode) { // To-Do: If pawnmode is true, then we must additionally check pawnAttackVector
-                if (currentTurn == "black") {
-                    if (typeof pieceInBox !== 'undefined') {
-                        let pieceInBoxColor = pieceInBox.getAttribute("pcolor");
-                        if (pieceInBoxColor == "white") {
-                            box.classList.add("piece-path-attack");
-                            let boxCommand = document.createElement("div");
-                            boxCommand.classList.add("box-clicker");
-                            boxCommand.onclick = () => { executeMove(boxCommand); };
-                            box.appendChild(boxCommand);
-                        }
-                    }
-                }
-                else if (currentTurn == "white") {
-                    if (typeof pieceInBox !== 'undefined') {
-                        let pieceInBoxColor = pieceInBox.getAttribute("pcolor");
-                        if (pieceInBoxColor == "black") {
-                            box.classList.add("piece-path-attack");
-                            let boxCommand = document.createElement("div");
-                            boxCommand.classList.add("box-clicker");
-                            boxCommand.onclick = () => { executeMove(boxCommand); };
-                            box.appendChild(boxCommand);
-                        }
-                    }
-                }
+        else if (pieceInBox !== null) { // Needs double checking pieceInBox because the previous if
+            let pieceInBoxColor = pieceInBox.getAttribute("pcolor");
+            if (pieceInBoxColor != currentTurn) {
+                box.classList.add("piece-path-attack");
+                let boxCommand = document.createElement("div");
+                boxCommand.classList.add("box-clicker");
+                boxCommand.onclick = () => { executeMove(boxCommand); };
+                box.appendChild(boxCommand);
             }
         }
     }
