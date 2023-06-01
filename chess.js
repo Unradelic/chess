@@ -65,6 +65,7 @@ class Player {
 }
 class Board {
 	constructor(canvasId, players) {
+		// Test.
 		// To-Do: Spawn pieces from players.
 		this.boardCanvas = document.querySelector(canvasId);
 		this.boardCanvas.classList.add("whites-turn");
