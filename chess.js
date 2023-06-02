@@ -28,6 +28,7 @@ class Game {
 	}
 }
 class Player {
+	// Test
 	constructor(color) {
 		this.color = color;
 		this.graveyard = [];
