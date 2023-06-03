@@ -67,43 +67,42 @@ class Game {
 	}
 	pieceClicked(player, piece) {
 		if (this.currentTurn == player.color) {
-			if (player.selectedPiece == null) {
-				player.selectedPiece = piece;
-				player.selectedPiece.element.classList.add("selected-piece");
+			this.clearPaths();
+			if (player.selectPiece(piece)) {
+				// The piece was selected.
 				this.drawPiecePath(player);
 			}
 			else {
-				this.clearPaths();
-				player.selectedPiece.element.classList.remove("selected-piece");
-				if (player.selectedPiece == piece) {
-					player.selectedPiece = null;
-				}
-				else {
-					player.selectedPiece = piece;
-					player.selectedPiece.element.classList.add("selected-piece");
-					this.drawPiecePath(player);
-				}
+				// The piece was deselected
+				console.log("Reached breakpoint.");
 			}
 		}
 	}
 	drawPiecePath(player) {
 		let invertedModifier = player.color == "black" ? true : false;
-		for (let i = 0; i < player.selectedPiece.moveset.length; i++) {
-			if (!this.drawPathBox(player, player.selectedPiece.position, player.selectedPiece.moveset[i], invertedModifier))
+		let selectedPiece = player.selectedPiece();
+		for (let i = 0; i < selectedPiece.moveset.length; i++) {
+			if (!this.drawPathBox(player, selectedPiece.position, selectedPiece.moveset[i], invertedModifier))
 				continue;
-			if (player.selectedPiece.moveset.repeatModifier) {
+			if (selectedPiece.moveset.iterateModifier) {
 				let hinting = true;
+				let boardHint = selectedPiece.position; // This is the pointer that is gonna move following piece moveset vectors.
 				while (hinting) {
-					origin = [parseInt(origin[0]) + parseInt(player.selectedPiece.moveset[i][0]), parseInt(origin[1]) + parseInt(player.selectedPiece.moveset[i][1])];
-					if (!this.drawPathBox(player, player.selectedPiece.position, player.selectedPiece.moveset[i], invertedModifier)) {
+					boardHint = [parseInt(boardHint[0]) + parseInt(selectedPiece.moveset[i][0]), parseInt(boardHint[1]) + parseInt(selectedPiece.moveset[i][1])];
+					if (!this.drawPathBox(player, boardHint, selectedPiece.moveset[i], invertedModifier)) {
 						hinting = false;
 					}
 				}
 			}
 		}
 	}
-	drawPathBox(player, position, vector, invertedModifier=false) {
-		let translatedPosition = this.coordToNotation([parseInt(position[0]) + parseInt(vector[0]), parseInt(position[1]) + parseInt(vector[1])], invertedModifier);
+	drawPathBox(player, position, vector, invertedModifier = false) {
+		let rawTPos = [parseInt(position[0]) + parseInt(vector[0]), parseInt(position[1]) + parseInt(vector[1])];
+		let inBoardBounds = (rawTPos[0] > 0 && rawTPos[0] < 9) && (rawTPos[1] > 0 && rawTPos[1] < 9) ? true : false;
+		if (!inBoardBounds) {
+			return false;
+		}
+		let translatedPosition = this.coordToNotation(rawTPos, invertedModifier);
 		let box = document.querySelector(`#${translatedPosition}`);
 		if (box != null) {
 			let pieceInBox = box.querySelector(".piece");
@@ -111,17 +110,17 @@ class Game {
 				box.classList.add("piece-path");
 				let boxCommand = document.createElement("div");
 				boxCommand.classList.add("box-clicker");
-				boxCommand.onclick = () => { this.playMove(player, translatedPosition); };
+				boxCommand.onclick = () => { this.playMove(player, invertedModifier ? this.invertCoord(rawTPos) : rawTPos); };
 				box.appendChild(boxCommand);
 				return true;
 			}
 			else {
 				let pieceInBoxColor = pieceInBox.getAttribute("pcolor");
-				if (pieceInBoxColor != player.selectedPiece.color) {
+				if (pieceInBoxColor != player.color) {
 					box.classList.add("piece-path-attack");
 					let boxCommand = document.createElement("div");
 					boxCommand.classList.add("box-clicker");
-					boxCommand.onclick = () => { this.playMove(player, translatedPosition); };
+					boxCommand.onclick = () => { this.playMove(player, invertedModifier ? this.invertCoord(rawTPos) : rawTPos); };
 					box.appendChild(boxCommand);
 				}
 			}
@@ -129,24 +128,25 @@ class Game {
 		return false;
 	}
 	clearPaths() {
-		let allBoxes = this.board.getElementsByClassName("box");
-		for (let i = 0; i < allBoxes.length; i++) {
-			if (allBoxes[i].classList.contains("piece-path")) {
-				allBoxes[i].classList.remove("piece-path")
-			}
-			if (allBoxes[i].classList.contains("piece-path-attack")) {
-				allBoxes[i].classList.remove("piece-path-attack")
-			}
-			let boxClicker = allBoxes[i].getElementsByClassName("box-clicker")[0];
-			if (typeof boxClicker !== 'undefined') {
-				boxClicker.remove();
-			}
+		let boxHints = this.board.querySelectorAll(".piece-path,.piece-path-attack");
+		for (let i = 0; i < boxHints.length; i++) {
+			boxHints[i].classList.remove("piece-path")
+			boxHints[i].classList.remove("piece-path-attack")
+			
+		}
+		let boxClickers = this.board.querySelectorAll(".box-clicker");
+		for (let i = 0; i < boxClickers.length; i++) {
+			boxClickers[i].remove();
 		}
 	}
 	playMove(player, position) {
-		let destinationBox = this.board.querySelector(`#${position}`);
+		let translatedPosition = this.coordToNotation(position);
+		let destinationBox = this.board.querySelector(`#${translatedPosition}`);
 		this.clearPaths();
-		player.selectedPiece.element.classList.remove("selected-piece");
+		let selectedPiece = player.selectedPiece();
+		selectedPiece.element.classList.remove("selected-piece");
+		selectedPiece.move(position);
+		player.selectPiece(null);
 		if (destinationBox.querySelector(".piece") != null) {
 			// Attack piece action
 			let deadPiece = destinationBox.querySelector(".piece");
@@ -155,28 +155,25 @@ class Game {
 			deadPiece.remove();
 		}
 		
-		if (!player.selectedPiece.hasMoved) {
-			player.selectedPiece.element.setAttribute("hasmoved", true);
+		if (!selectedPiece.hasMoved) {
+			selectedPiece.element.setAttribute("hasmoved", true);
 		}
-		destinationBox.appendChild(player.selectedPiece.element);
+		destinationBox.appendChild(selectedPiece.element);
 		
-		this.state.history.push([player.selectedPiece.position, position])
+		this.state.history.push([selectedPiece.position, position])
 		
-		if (player.selectedPiece != null) {
-			player.selectedPiece.element.classList.remove("selected-piece");
-			player.selectedPiece = null;
-		}
 		this.clearPaths();
 		
-		wrpsp.loadStart();
+		/* wrpsp.loadStart();
 		setTimeout(function () { wrpsp.loadDone(); }, 1000);
+		*/
 		
 		let turnBanner = document.querySelector("#game-turn-banner");
 		if (player.color == "white") {
-			turnBanner.getElementsByClassName("game-turn-banner-text")[0].innerHTML = "Whites Turn!";
+			turnBanner.getElementsByClassName("game-turn-banner-text")[0].innerHTML = "Blacks Turn!";
 		}
 		else if (player.color == "black") {
-			turnBanner.getElementsByClassName("game-turn-banner-text")[0].innerHTML = "Blacks Turn!";
+			turnBanner.getElementsByClassName("game-turn-banner-text")[0].innerHTML = "Whites Turn!";
 		}
 		
 		turnBanner.classList.remove("game-turn-banner");
@@ -197,23 +194,32 @@ class Game {
 		this.currentTurn = this.currentTurn == "white" ? "black" : "white";
 		this.state.turnIndex++;
 	}
+	invertCoord(coord) {
+		return [
+			9 - coord[0],
+			9 - coord[1]
+		];
+	}
 	notationToCoord(notation, inverted = false) {
-		let first = notation[0].charCodeAt(0) - 96; // Convert letter to number
-		let second = parseInt(notation[1]);
+		let newCoord = [
+			notation[0].charCodeAt(0) - 96,
+			parseInt(notation[1])
+		];
 		if (inverted) {
-			first = 9 - first;
-			second = 9 - second;
+			newCoord = this.invertCoord(newCoord);
 		}
-		return [first, second];
+		return newCoord;
 	}
 	coordToNotation(coord, inverted = false) {
-		let first = String.fromCharCode(coord[0] + 96); // Convert number to letter
-		let second = coord[1];
+		let newCoord = coord;
 		if (inverted) {
-			first = String.fromCharCode(105 - coord[0]); // 105 corresponds to 'i'
-			second = 9 - second;
+			newCoord = this.invertCoord(newCoord);
 		}
-		return first + second;
+		let newNotation = [
+			String.fromCharCode(newCoord[0] + 96),
+			newCoord[1]
+		];
+		return newNotation.join("");
 	}
 	eraseGame() {
 		this.board.innerHTML = "";
@@ -242,7 +248,25 @@ class Player {
 			this.pieces.push(new Queen([4, 1]));
 			this.pieces.push(new King([5, 1]));
 		}
-		this.selectedPiece = null;
+		this.selectedPieceIndex = null;
+		this.selectedPiece = () => { return this.pieces[this.selectedPieceIndex]; };
+	}
+	selectPiece(piece) {
+		if (piece !== null) {
+			let pieceIndex = this.pieces.indexOf(piece);
+			if (pieceIndex == this.selectedPieceIndex) {
+				this.selectedPieceIndex = null;
+				return false;
+			}
+			else {
+				this.selectedPieceIndex = pieceIndex;
+				return true;
+			}
+		}
+		else {
+			this.selectedPieceIndex = null;
+			return false
+		}
 	}
 	invokePiece(PieceClass, positions) {
 		let pieces = [];
@@ -261,14 +285,12 @@ class Piece {
 		this.captured = false;
 		this.element = null;
 	}
-	
 	move(position) {
 		if (!this.hasMoved) {
 			this.hasMoved = true;
 		}
 		this.position = position;
 	}
-
 	capture() {
 		
 	}
@@ -278,10 +300,9 @@ class Pawn extends Piece {
 		super(position);
 		this.type = "pawn";
 		this.moveset = [[0, 1]];
+		this.moveset.iterateModifier = false;
 		this.captureVector = [[-1, 1], [1, 1]];
-		this.moveset.repeatModifier = false;
 	}
-	
 	move(position) {
 		super.move(position);
 		this.moveset = [[0, 1]];
