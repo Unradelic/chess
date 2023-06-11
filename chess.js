@@ -53,7 +53,6 @@ class Game {
 					piece.element.classList.add("piece");
 					piece.element.setAttribute("ptype", piece.type);
 					piece.element.setAttribute("pcolor", player.color);
-					piece.element.setAttribute("hasmoved", piece.hasMoved);
 					piece.element.onclick = () => this.pieceClicked(player, piece);
 					boardCell.appendChild(piece.element);
 				}
@@ -65,67 +64,143 @@ class Game {
 			throw new Error(`Couldn't find the element by id ${targetElementId}`)
 		}
 	}
-	pieceClicked(player, piece) {
-		if (this.currentTurn == player.color) {
+	pieceClicked(pieceOwner, piece) {
+		if (this.currentTurn == pieceOwner.color) {
 			this.clearPaths();
-			if (player.selectPiece(piece)) {
+			if (pieceOwner.selectPiece(piece)) {
 				// The piece was selected.
-				this.drawPiecePath(player);
+				this.drawPiecePath(pieceOwner, piece);
 			}
 			else {
 				// The piece was deselected
-				console.log("Reached breakpoint.");
 			}
 		}
 	}
-	drawPiecePath(player) {
+	drawPiecePath(player, piece) {
 		let invertedModifier = player.color == "black" ? true : false;
-		let selectedPiece = player.selectedPiece();
-		for (let i = 0; i < selectedPiece.moveset.length; i++) {
-			if (!this.drawPathBox(player, selectedPiece.position, selectedPiece.moveset[i], invertedModifier))
+		
+		let drawMode = piece.type != "pawn" ? false : "move";
+		// drawMode will define the processing behaviour of moveset.vectors
+		//	Set to false for both move and attack.
+		//	Set to 'move' for only moving (no attacking)
+		//	Set to 'attack' for only attacking (no moving)
+		// 	Set to 'attack-capture' to check for attack and capture en passant (defaulting for pawns)
+		
+		for (let i = 0; i < piece.moveset.vectors.length; i++) {
+			if (!this.drawPathBox(player, piece.position, piece.moveset.vectors[i], drawMode, invertedModifier))
 				continue;
-			if (selectedPiece.moveset.iterateModifier) {
+			if (piece.moveset.iterateModifier) {
 				let hinting = true;
-				let boardHint = selectedPiece.position; // This is the pointer that is gonna move following piece moveset vectors.
+				let boardHint = piece.position; // This is the pointer that is gonna move following piece moveset vectors.
 				while (hinting) {
-					boardHint = [parseInt(boardHint[0]) + parseInt(selectedPiece.moveset[i][0]), parseInt(boardHint[1]) + parseInt(selectedPiece.moveset[i][1])];
-					if (!this.drawPathBox(player, boardHint, selectedPiece.moveset[i], invertedModifier)) {
+					boardHint = [
+						parseInt(boardHint[0]) + parseInt(piece.moveset.vectors[i][0]),
+						parseInt(boardHint[1]) + parseInt(piece.moveset.vectors[i][1])
+					];
+					if (!this.drawPathBox(player, boardHint, piece.moveset.vectors[i], drawMode, invertedModifier)) {
 						hinting = false;
 					}
 				}
 			}
 		}
+		// Process moveset.captureVectors, if any.
+		drawMode = piece.type != "pawn" ? "attack" : "attack-capture";
+		for (let i = 0; i < piece.moveset.captureVectors.length; i++) {
+			if (!this.drawPathBox(player, piece.position, piece.moveset.captureVectors[i], drawMode, invertedModifier))
+				continue;
+		}
 	}
-	drawPathBox(player, position, vector, invertedModifier = false) {
+	drawPathBox(player, position, vector, drawMode, invertedModifier) {
+		// rawTPos is an abbreviation for rawTranslatedPosition
 		let rawTPos = [parseInt(position[0]) + parseInt(vector[0]), parseInt(position[1]) + parseInt(vector[1])];
 		let inBoardBounds = (rawTPos[0] > 0 && rawTPos[0] < 9) && (rawTPos[1] > 0 && rawTPos[1] < 9) ? true : false;
 		if (!inBoardBounds) {
 			return false;
 		}
+		// returnValue must be true if current vector position is not obstructed (wall bounds or a piece)
+		// in order to hint iterateModifier to continue, if active.
+		let returnValue = false;
 		let translatedPosition = this.coordToNotation(rawTPos, invertedModifier);
 		let box = document.querySelector(`#${translatedPosition}`);
 		if (box != null) {
 			let pieceInBox = box.querySelector(".piece");
-			if (pieceInBox === null) {
-				box.classList.add("piece-path");
-				let boxCommand = document.createElement("div");
-				boxCommand.classList.add("box-clicker");
-				boxCommand.onclick = () => { this.playMove(player, invertedModifier ? this.invertCoord(rawTPos) : rawTPos); };
-				box.appendChild(boxCommand);
-				return true;
+			if (drawMode) {
+				if (drawMode == "move") {
+					if (pieceInBox === null) {
+						box.classList.add("piece-path");
+						let boxCommand = document.createElement("div");
+						boxCommand.classList.add("box-clicker");
+						boxCommand.onclick = () => { this.playMove(player, rawTPos, invertedModifier); };
+						box.appendChild(boxCommand);
+						return true;
+					}
+				}
+				else if (drawMode == "attack" && pieceInBox !== null) {
+					let pieceInBoxColor = pieceInBox.getAttribute("pcolor");
+					if (pieceInBoxColor != player.color) {
+						box.classList.add("piece-path-attack");
+						let boxCommand = document.createElement("div");
+						boxCommand.classList.add("box-clicker");
+						boxCommand.onclick = () => { this.playMove(player, rawTPos, invertedModifier); };
+						box.appendChild(boxCommand);
+					}
+				}
+				else if (drawMode == "attack-capture") {
+					if (pieceInBox !== null) {
+						// Attack
+						let pieceInBoxColor = pieceInBox.getAttribute("pcolor");
+						if (pieceInBoxColor != player.color) {
+							box.classList.add("piece-path-attack");
+							let boxCommand = document.createElement("div");
+							boxCommand.classList.add("box-clicker");
+							boxCommand.onclick = () => { this.playMove(player, rawTPos, invertedModifier); };
+							box.appendChild(boxCommand);
+						}
+					}
+					else {
+						// Capture?
+						let translatedHintPosition = this.coordToNotation([rawTPos[0], rawTPos[1] - 1], invertedModifier);
+						let hintBox = document.querySelector(`#${translatedHintPosition}`);
+						if (hintBox != null) {
+							let pieceInHintBox = hintBox.querySelector(".piece");
+							if (pieceInHintBox !== null) {
+								let pieceInHintBoxColor = pieceInHintBox.getAttribute("pcolor");
+								if (pieceInHintBoxColor != player.color) {
+									// Piece to capture has been detected.
+									box.classList.add("piece-path-attack");
+									let boxCommand = document.createElement("div");
+									boxCommand.classList.add("box-clicker");
+									boxCommand.onclick = () => { this.playMove(player, rawTPos, invertedModifier, true); };
+									box.appendChild(boxCommand);
+								}
+							}
+						}
+					}
+				}
 			}
 			else {
-				let pieceInBoxColor = pieceInBox.getAttribute("pcolor");
-				if (pieceInBoxColor != player.color) {
-					box.classList.add("piece-path-attack");
+				// drawMode = NORMAL
+				if (pieceInBox !== null) {
+					let pieceInBoxColor = pieceInBox.getAttribute("pcolor");
+					if (pieceInBoxColor != player.color) {
+						box.classList.add("piece-path-attack");
+						let boxCommand = document.createElement("div");
+						boxCommand.classList.add("box-clicker");
+						boxCommand.onclick = () => { this.playMove(player, rawTPos, invertedModifier); };
+						box.appendChild(boxCommand);
+					}
+				}
+				else {
+					box.classList.add("piece-path");
 					let boxCommand = document.createElement("div");
 					boxCommand.classList.add("box-clicker");
-					boxCommand.onclick = () => { this.playMove(player, invertedModifier ? this.invertCoord(rawTPos) : rawTPos); };
+					boxCommand.onclick = () => { this.playMove(player, rawTPos, invertedModifier); };
 					box.appendChild(boxCommand);
+					return true;
 				}
 			}
 		}
-		return false;
+		return returnValue;
 	}
 	clearPaths() {
 		let boxHints = this.board.querySelectorAll(".piece-path,.piece-path-attack");
@@ -139,34 +214,43 @@ class Game {
 			boxClickers[i].remove();
 		}
 	}
-	playMove(player, position) {
-		let translatedPosition = this.coordToNotation(position);
-		let destinationBox = this.board.querySelector(`#${translatedPosition}`);
+	playMove(player, position, invertedModifier, capturing = false) {
+		let notationPosition = this.coordToNotation(position, invertedModifier);
+		let destinationBox = this.board.querySelector(`#${notationPosition}`);
 		this.clearPaths();
 		let selectedPiece = player.selectedPiece();
 		selectedPiece.element.classList.remove("selected-piece");
 		selectedPiece.move(position);
 		player.selectPiece(null);
-		if (destinationBox.querySelector(".piece") != null) {
-			// Attack piece action
+		if (capturing) {
+			let capturingCoord = [position[0], position[1] - 1];
+			let notationCapturing = this.coordToNotation(capturingCoord, invertedModifier);
+			let captureBox = this.board.querySelector(`#${notationCapturing}`);
+			if (captureBox.querySelector(".piece") != null) {
+				// Capture piece
+				let deadPiece = captureBox.querySelector(".piece");
+				let deadPieceType = deadPiece.getAttribute("ptype");
+				player.capturedPieces.push(deadPieceType);
+				deadPiece.remove();
+			}
+		}
+		else if (destinationBox.querySelector(".piece") != null) {
+			// Attack piece
 			let deadPiece = destinationBox.querySelector(".piece");
 			let deadPieceType = deadPiece.getAttribute("ptype");
-			player.graveyard.push(deadPieceType);
+			player.capturedPieces.push(deadPieceType);
 			deadPiece.remove();
 		}
 		
-		if (!selectedPiece.hasMoved) {
-			selectedPiece.element.setAttribute("hasmoved", true);
-		}
 		destinationBox.appendChild(selectedPiece.element);
 		
 		this.state.history.push([selectedPiece.position, position])
 		
 		this.clearPaths();
 		
-		/* wrpsp.loadStart();
+		wrpsp.loadStart();
 		setTimeout(function () { wrpsp.loadDone(); }, 1000);
-		*/
+		
 		
 		let turnBanner = document.querySelector("#game-turn-banner");
 		if (player.color == "white") {
@@ -234,13 +318,15 @@ class Game {
 class Player {
 	constructor(color) {
 		this.color = color;
-		this.graveyard = [];
 		this.pieces = [];
 		this.pieces.push(...this.invokePiece(Pawn, [[1, 2], [2, 2], [3, 2], [4, 2], [5, 2], [6, 2], [7, 2], [8, 2]]));
 		this.pieces.push(...this.invokePiece(Rook, [[1, 1], [8, 1]]));
 		this.pieces.push(...this.invokePiece(Knight, [[2, 1], [7, 1]]));
 		this.pieces.push(...this.invokePiece(Bishop, [[3, 1], [6, 1]]));
-		if (this.color == "black") { //Exception for the queen and king since the queen must spawn in a box of its same color.
+		// Exception for queen and king starting positions, because the queen must spawn in a box of its same color.
+		// A possible implementation for this is flip coordinates horizontally or vertically
+		// For this case, it needs a horizontal flip.
+		if (this.color == "black") {
 			this.pieces.push(new Queen([5, 1]));
 			this.pieces.push(new King([4, 1]));
 		}
@@ -250,6 +336,7 @@ class Player {
 		}
 		this.selectedPieceIndex = null;
 		this.selectedPiece = () => { return this.pieces[this.selectedPieceIndex]; };
+		this.capturedPieces = [];
 	}
 	selectPiece(piece) {
 		if (piece !== null) {
@@ -268,10 +355,10 @@ class Player {
 			return false
 		}
 	}
-	invokePiece(PieceClass, positions) {
+	invokePiece(PieceClassName, positions) {
 		let pieces = [];
 		for (let i = 0; i < positions.length; i++) {
-			pieces.push(new PieceClass(positions[i]));
+			pieces.push(new PieceClassName(positions[i]));
 		}
 		return pieces;
 	}
@@ -279,8 +366,11 @@ class Player {
 class Piece {
 	constructor(position) {
 		this.position = position;
-		this.moveset = null;
-		this.captureVector = null;
+		this.moveset = {
+			vectors: [],
+			captureVectors: [],
+			iterateModifier: false
+		}
 		this.hasMoved = false;
 		this.captured = false;
 		this.element = null;
@@ -299,47 +389,42 @@ class Pawn extends Piece {
 	constructor(position) {
 		super(position);
 		this.type = "pawn";
-		this.moveset = [[0, 1]];
-		this.moveset.iterateModifier = false;
-		this.captureVector = [[-1, 1], [1, 1]];
+		this.moveset.vectors = [[0, 1], [0, 2]];
+		this.moveset.captureVectors = [[-1, 1], [1, 1]];
 	}
 	move(position) {
 		super.move(position);
-		this.moveset = [[0, 1]];
+		this.moveset.vectors = [[0, 1]];
 	}
 }
 class Rook extends Piece {
 	constructor(position) {
 		super(position);
 		this.type = "rook";
-		this.moveset = [[0, 1], [-1, 0], [0, -1], [1, 0]];
+		this.moveset.vectors = [[0, 1], [-1, 0], [0, -1], [1, 0]];
 		this.moveset.iterateModifier = true;
-		this.captureVector = null;
 	}
 }
 class Knight extends Piece {
 	constructor(position) {
 		super(position);
 		this.type = "knight";
-		this.moveset = [[-1, 2], [1, 2], [2, 1], [-2, -1], [-1, -2], [1, -2], [-2, 1], [2, -1]];
-		this.moveset.iterateModifier = false;
-		this.captureVector = null;
+		this.moveset.vectors = [[-1, 2], [1, 2], [2, 1], [-2, -1], [-1, -2], [1, -2], [-2, 1], [2, -1]];
 	}
 }
 class Bishop extends Piece {
 	constructor(position) {
 		super(position);
 		this.type = "bishop";
-		this.moveset = [[-1, 1], [1, 1], [-1, -1], [1, -1]];
+		this.moveset.vectors = [[-1, 1], [1, 1], [-1, -1], [1, -1]];
 		this.moveset.iterateModifier = true;
-		this.captureVector = null;
 	}
 }
 class Queen extends Piece {
 	constructor(position) {
 		super(position);
 		this.type = "queen";
-		this.moveset = [[-1, 1], [0, 1], [1, 1], [-1, 0], [1, 0], [-1, -1], [0, -1], [1, -1]];
+		this.moveset.vectors = [[-1, 1], [0, 1], [1, 1], [-1, 0], [1, 0], [-1, -1], [0, -1], [1, -1]];
 		this.moveset.iterateModifier = true;
 	}
 }
@@ -347,14 +432,15 @@ class King extends Piece {
 	constructor(position) {
 		super(position);
 		this.type = "king";
-		this.moveset = [[-1, 1], [1, 1], [-1, -1], [1, -1]];
-		this.moveset.iterateModifier = true;
-		this.captureVector = null;
+		//To-Do: Update moveset vectors to enable switching places with the rook
+		this.moveset.vectors = [[-1, 1], [0, 1], [1, 1], [-1, 0], [1, 0], [-1, -1], [0, -1], [1, -1]];
 	}
-	
 	move(position) {
+		if (!this.hasMoved) {
+			this.moveset.vectors = [[-1, 1], [0, 1], [1, 1], [-1, 0], [1, 0], [-1, -1], [0, -1], [1, -1]];
+		}
 		super.move(position);
-		this.moveset = [[-1, 1], [0, 1], [1, 1], [-1, 0], [1, 0], [-1, -1], [0, -1], [1, -1]];
+		
 	}
 }
 
