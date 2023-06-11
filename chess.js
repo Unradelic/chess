@@ -165,8 +165,8 @@ class Game {
 							let pieceInHintBox = hintBox.querySelector(".piece");
 							if (pieceInHintBox !== null) {
 								let pieceInHintBoxColor = pieceInHintBox.getAttribute("pcolor");
-								if (pieceInHintBoxColor != player.color) {
-									// Piece to capture has been detected.
+								if (pieceInHintBoxColor != player.color && pieceInHintBoxColor.getAttribute("ptype") == "pawn") {
+									// A pawn to capture has been detected.
 									box.classList.add("piece-path-attack");
 									let boxCommand = document.createElement("div");
 									boxCommand.classList.add("box-clicker");
